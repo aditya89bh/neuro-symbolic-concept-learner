@@ -1,0 +1,23 @@
+[project]
+name = "neuro-symbolic-concept-learner"
+version = "0.1.0"
+description = "Hybrid neuro-symbolic framework for visual question answering"
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.1.0", "mypy>=1.0"]
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true

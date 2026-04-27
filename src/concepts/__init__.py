@@ -13,3 +13,7 @@ The module learns both concrete visual concepts (objects, attributes)
 and abstract concepts (spatial relations, actions) that can be
 used for symbolic reasoning.
 """
+
+from src.concepts.concept_learner import ConceptLearner
+
+__all__ = ["ConceptLearner"]

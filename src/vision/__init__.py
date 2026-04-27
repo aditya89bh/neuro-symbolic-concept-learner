@@ -13,3 +13,7 @@ The module combines CNN-based feature extractors with attention mechanisms
 to process visual inputs and extract meaningful representations for
 downstream reasoning tasks.
 """
+
+from src.vision.visual_processor import VisualProcessor
+
+__all__ = ["VisualProcessor"]

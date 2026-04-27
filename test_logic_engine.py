@@ -1,233 +1,137 @@
-#!/usr/bin/env python3
-"""
-Test script for SimpleLogicEngine class demonstrating CLEVR-style query handling.
-"""
+"""Pytest tests for SimpleLogicEngine."""
 
+import pytest
 from src.reasoning.logic_engine import SimpleLogicEngine
 
 
-def test_basic_queries():
-    """Test basic query functionality."""
-    print("=== Testing Basic Queries ===\n")
-    
-    # Create sample facts from a CLEVR scene
-    facts = [
+BASIC_FACTS = [
+    "Object(obj1, cube, red, metal, large)",
+    "Object(obj2, sphere, blue, rubber, small)",
+    "Object(obj3, cylinder, green, metal, large)",
+    "Object(obj4, cube, yellow, rubber, small)",
+    "Relation(obj1, left_of, obj2)",
+    "Relation(obj3, above, obj1)",
+    "Relation(obj4, right_of, obj2)",
+]
+
+
+@pytest.fixture
+def engine():
+    return SimpleLogicEngine(BASIC_FACTS)
+
+
+def test_object_count(engine):
+    assert len(engine) == 4
+
+
+def test_get_all_objects(engine):
+    assert set(engine.get_all_objects()) == {"obj1", "obj2", "obj3", "obj4"}
+
+
+def test_get_object_properties(engine):
+    props = engine.get_object_properties("obj1")
+    assert props == {"shape": "cube", "color": "red", "material": "metal", "size": "large"}
+
+
+def test_get_object_properties_missing(engine):
+    assert engine.get_object_properties("nonexistent") is None
+
+
+def test_find_by_property(engine):
+    assert set(engine.find_objects_by_property("shape", "cube")) == {"obj1", "obj4"}
+    assert engine.find_objects_by_property("color", "red") == ["obj1"]
+    assert set(engine.find_objects_by_property("material", "metal")) == {"obj1", "obj3"}
+
+
+def test_find_by_unknown_property(engine):
+    assert engine.find_objects_by_property("unknown", "value") == []
+
+
+def test_count_by_property(engine):
+    assert engine.count_by_property("shape", "cube") == 2
+    assert engine.count_by_property("color", "red") == 1
+    assert engine.count_by_property("material", "metal") == 2
+    assert engine.count_by_property("size", "large") == 2
+    assert engine.count_by_property("color", "purple") == 0
+
+
+def test_query_find_with_where(engine):
+    assert set(engine.query("find objects where shape is cube")) == {"obj1", "obj4"}
+    assert engine.query("find objects where color is red") == ["obj1"]
+
+
+def test_query_count_with_where(engine):
+    assert engine.query("count objects where shape is cube") == 2
+    assert engine.query("count objects where color is red") == 1
+
+
+def test_find_relations_between(engine):
+    rels = engine.find_relations_between("obj1", "obj2")
+    assert len(rels) == 1
+    assert rels[0] == ("obj1", "left_of", "obj2")
+
+
+def test_find_relations_between_unknown(engine):
+    assert engine.find_relations_between("obj1", "obj4") == []
+
+
+def test_query_relations_between(engine):
+    result = engine.query("find relations between obj1 and obj2")
+    assert len(result) == 1
+
+
+def test_compare_objects_same_shape():
+    eng = SimpleLogicEngine([
+        "Object(obj1, cube, red, metal, large)",
+        "Object(obj2, cube, red, metal, small)",
+    ])
+    result = eng.compare_objects("obj1", "obj2")
+    assert "similarities" in result
+    assert "differences" in result
+    assert any("shape" in s for s in result["similarities"])
+    assert any("size" in d for d in result["differences"])
+
+
+def test_compare_objects_missing():
+    eng = SimpleLogicEngine(["Object(obj1, cube, red, metal, large)"])
+    assert eng.compare_objects("obj1", "nonexistent") == {}
+
+
+def test_query_compare(engine):
+    result = engine.query("compare obj1 and obj2")
+    assert isinstance(result, dict)
+    assert "similarities" in result
+
+
+def test_add_facts_incremental():
+    eng = SimpleLogicEngine(["Object(obj1, cube, red, metal, large)"])
+    assert len(eng) == 1
+    eng.add_facts(["Object(obj2, sphere, blue, rubber, small)"])
+    assert len(eng) == 2
+    assert eng.get_object_properties("obj1") is not None
+    assert eng.get_object_properties("obj2") is not None
+
+
+def test_add_facts_preserves_relations():
+    eng = SimpleLogicEngine([
         "Object(obj1, cube, red, metal, large)",
         "Object(obj2, sphere, blue, rubber, small)",
-        "Object(obj3, cylinder, green, metal, large)",
-        "Object(obj4, cube, yellow, rubber, small)",
         "Relation(obj1, left_of, obj2)",
-        "Relation(obj3, above, obj1)",
-        "Relation(obj4, right_of, obj2)"
-    ]
-    
-    # Initialize logic engine
-    engine = SimpleLogicEngine(facts)
-    print(f"Initialized engine with {len(engine)} objects and {len(engine.get_all_relations())} relations\n")
-    
-    # Test find queries
-    print("Find queries:")
-    queries = [
-        "find objects where shape is cube",
-        "find red objects",
-        "find metal objects",
-        "find large objects"
-    ]
-    
-    for query in queries:
-        result = engine.query(query)
-        print(f"  '{query}' -> {result}")
-    
-    print()
-    
-    # Test count queries
-    print("Count queries:")
-    count_queries = [
-        "count objects where shape is cube",
-        "how many red objects",
-        "count objects where material is metal",
-        "how many large objects"
-    ]
-    
-    for query in count_queries:
-        result = engine.query(query)
-        print(f"  '{query}' -> {result}")
-    
-    print()
+    ])
+    eng.add_facts(["Object(obj3, cylinder, green, metal, large)"])
+    assert len(eng) == 3
+    assert len(eng.get_all_relations()) == 1
 
 
-def test_relation_queries():
-    """Test relation-based queries."""
-    print("=== Testing Relation Queries ===\n")
-    
-    facts = [
-        "Object(obj1, cube, red, metal, large)",
-        "Object(obj2, sphere, blue, rubber, small)",
-        "Object(obj3, cylinder, green, metal, large)",
-        "Relation(obj1, left_of, obj2)",
-        "Relation(obj3, above, obj1)",
-        "Relation(obj2, right_of, obj1)"
-    ]
-    
-    engine = SimpleLogicEngine(facts)
-    
-    # Test relation queries
-    print("Relation queries:")
-    queries = [
-        "find relations between obj1 and obj2",
-        "find objects left_of obj1",
-        "find objects above obj1"
-    ]
-    
-    for query in queries:
-        result = engine.query(query)
-        print(f"  '{query}' -> {result}")
-    
-    print()
+def test_empty_engine():
+    eng = SimpleLogicEngine()
+    assert len(eng) == 0
+    assert eng.find_objects_by_property("color", "red") == []
+    assert eng.count_by_property("shape", "cube") == 0
+    assert eng.get_all_relations() == []
 
 
-def test_comparison_queries():
-    """Test object comparison queries."""
-    print("=== Testing Comparison Queries ===\n")
-    
-    facts = [
-        "Object(obj1, cube, red, metal, large)",
-        "Object(obj2, sphere, blue, rubber, small)",
-        "Object(obj3, cube, red, metal, small)"
-    ]
-    
-    engine = SimpleLogicEngine(facts)
-    
-    # Test comparison queries
-    print("Comparison queries:")
-    queries = [
-        "compare obj1 and obj2",
-        "compare obj1 and obj3"
-    ]
-    
-    for query in queries:
-        result = engine.query(query)
-        print(f"  '{query}' -> {result}")
-        if isinstance(result, dict) and 'similarities' in result:
-            print(f"    Similarities: {result['similarities']}")
-            print(f"    Differences: {result['differences']}")
-        print()
-
-
-def test_direct_methods():
-    """Test direct method calls."""
-    print("=== Testing Direct Methods ===\n")
-    
-    facts = [
-        "Object(obj1, cube, red, metal, large)",
-        "Object(obj2, sphere, blue, rubber, small)",
-        "Object(obj3, cylinder, green, metal, large)",
-        "Relation(obj1, left_of, obj2)"
-    ]
-    
-    engine = SimpleLogicEngine(facts)
-    
-    # Test direct method calls
-    print("Direct method calls:")
-    
-    # Find objects by property
-    red_objects = engine.find_objects_by_property("color", "red")
-    print(f"  find_objects_by_property('color', 'red') -> {red_objects}")
-    
-    metal_objects = engine.find_objects_by_property("material", "metal")
-    print(f"  find_objects_by_property('material', 'metal') -> {metal_objects}")
-    
-    # Count by property
-    cube_count = engine.count_by_property("shape", "cube")
-    print(f"  count_by_property('shape', 'cube') -> {cube_count}")
-    
-    # Get object properties
-    obj1_props = engine.get_object_properties("obj1")
-    print(f"  get_object_properties('obj1') -> {obj1_props}")
-    
-    # Find relations
-    relations = engine.find_relations_between("obj1", "obj2")
-    print(f"  find_relations_between('obj1', 'obj2') -> {relations}")
-    
-    print()
-
-
-def test_complex_scenarios():
-    """Test more complex CLEVR-style scenarios."""
-    print("=== Testing Complex Scenarios ===\n")
-    
-    # More complex scene with multiple objects and relations
-    facts = [
-        "Object(red_cube, cube, red, metal, large)",
-        "Object(blue_sphere, sphere, blue, rubber, small)",
-        "Object(green_cylinder, cylinder, green, metal, large)",
-        "Object(yellow_cube, cube, yellow, rubber, small)",
-        "Object(purple_sphere, sphere, purple, metal, small)",
-        "Relation(red_cube, left_of, blue_sphere)",
-        "Relation(green_cylinder, above, red_cube)",
-        "Relation(yellow_cube, right_of, blue_sphere)",
-        "Relation(purple_sphere, behind, green_cylinder)"
-    ]
-    
-    engine = SimpleLogicEngine(facts)
-    
-    print("Complex scene queries:")
-    
-    # Multi-step reasoning scenarios
-    scenarios = [
-        "find objects where shape is cube and color is red",
-        "count objects where material is metal and size is large",
-        "find objects where shape is sphere and material is rubber",
-        "how many small objects",
-        "find objects where color is blue or green"
-    ]
-    
-    for scenario in scenarios:
-        result = engine.query(scenario)
-        print(f"  '{scenario}' -> {result}")
-    
-    print()
-
-
-def test_error_handling():
-    """Test error handling and edge cases."""
-    print("=== Testing Error Handling ===\n")
-    
-    # Test with empty engine
-    empty_engine = SimpleLogicEngine()
-    print("Empty engine tests:")
-    print(f"  query('find red objects') -> {empty_engine.query('find red objects')}")
-    print(f"  count_by_property('color', 'red') -> {empty_engine.count_by_property('color', 'red')}")
-    
-    # Test with invalid queries
-    facts = ["Object(obj1, cube, red, metal, large)"]
-    engine = SimpleLogicEngine(facts)
-    
-    print("\nInvalid query tests:")
-    invalid_queries = [
-        "find objects where invalid_property is value",
-        "count objects where shape is nonexistent",
-        "compare obj1 and nonexistent_obj"
-    ]
-    
-    for query in invalid_queries:
-        result = engine.query(query)
-        print(f"  '{query}' -> {result}")
-    
-    print()
-
-
-def main():
-    """Run all tests."""
-    test_basic_queries()
-    test_relation_queries()
-    test_comparison_queries()
-    test_direct_methods()
-    test_complex_scenarios()
-    test_error_handling()
-    
-    print("=== All Logic Engine Tests Completed Successfully! ===")
-
-
-if __name__ == "__main__":
-    main()
+def test_clear(engine):
+    engine.clear()
+    assert len(engine) == 0
+    assert engine.get_all_relations() == []
