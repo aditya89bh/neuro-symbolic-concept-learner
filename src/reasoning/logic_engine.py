@@ -6,7 +6,7 @@ and answer basic queries about objects and their properties. It's designed to ha
 CLEVR-style questions using simple string parsing and matching.
 """
 
-from typing import List, Dict, Set, Optional, Tuple, Any
+from typing import Dict, List, Optional, Set, Tuple, Union, Any
 import re
 from enum import Enum
 
@@ -48,12 +48,13 @@ class SimpleLogicEngine:
     def add_facts(self, facts: List[str]) -> None:
         """
         Add new facts to the knowledge base.
-        
+
         Args:
             facts: List of predicate strings to add
         """
         self.facts.extend(facts)
-        self._parse_facts()
+        for fact in facts:
+            self._parse_predicate(fact)
     
     def _parse_facts(self) -> None:
         """Parse all facts to extract objects and relations."""
@@ -96,7 +97,7 @@ class SimpleLogicEngine:
             ))
             return
     
-    def query(self, query: str) -> Any:
+    def query(self, query: str) -> Union[List[str], int, List[Tuple[str, str, str]], Dict[str, Any]]:
         """
         Process a natural language query and return results.
         

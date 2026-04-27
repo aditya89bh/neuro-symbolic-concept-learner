@@ -183,6 +183,7 @@ datasets/
 *.json
 *.xml
 *.txt
+!requirements.txt
 *.tsv
 *.parquet
 *.feather
