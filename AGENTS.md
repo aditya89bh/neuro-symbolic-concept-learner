@@ -1,27 +1,24 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Commands
 
 The project has no external dependencies — everything uses Python stdlib only (`re`, `enum`, `dataclasses`, `math`, `typing`).
 
-Run the full integration test suite (print-based, not pytest):
+Run the full test suite with pytest:
 ```bash
-python test_complete_pipeline.py
-python test_scene_graph.py
-python test_logic_engine.py
-python test_question_parser.py
+pytest
+```
+
+Run a single test file:
+```bash
+pytest test_scene_graph.py -v
 ```
 
 Run the end-to-end demo:
 ```bash
 python demo_working_pipeline.py
-```
-
-Run a single test function directly:
-```bash
-python -c "from test_complete_pipeline import test_basic_pipeline; test_basic_pipeline()"
 ```
 
 ## Architecture
@@ -51,10 +48,10 @@ StructuredQuery ──to_logic_query()──► query_str     answer (Any)
 
 ### Stub modules (not yet implemented)
 
-`src/vision/` and `src/concepts/` contain only docstring `__init__.py` files. The README describes intended components (CNN feature extraction, concept grounding, etc.) but no code exists there yet.
+`src/vision/` and `src/concepts/` expose `VisualProcessor` and `ConceptLearner` abstract base classes. Concrete implementations (CNN feature extraction, concept grounding, etc.) are not yet written.
 
 ### Key invariants
 
-- `SimpleLogicEngine.add_facts()` calls `_parse_facts()`, which **clears and rebuilds** `self.objects` and `self.relations` from scratch every time — so calling it repeatedly is safe but O(n) in total facts each time.
+- `SimpleLogicEngine.add_facts()` parses only the newly supplied facts incrementally — it does **not** clear the existing knowledge base.
 - `SceneGraph.to_predicates()` is lossy: 3D position data does not survive the round-trip through the predicate format.
 - All valid CLEVR property values are fixed enums (`Shape`, `Color`, `Material`, `Size`, `SpatialRelation`). The logic engine stores values as lowercase strings after stripping; the question parser validates against hardcoded `valid_values` lists that must be kept in sync with these enums.
